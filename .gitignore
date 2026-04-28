@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.env
+.venv
+venv/
+ENV/
+
+# Playwright
+.pytest_cache/
+playwright-report/
+test-results/
+*.ogg
+
+# Output
+output/
+*.pdf
+*.json
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Local assistant settings
+CLAUDE.local.md
+.claude/settings.local.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# uv
+uv.lock
