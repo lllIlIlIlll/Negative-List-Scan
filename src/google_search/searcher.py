@@ -85,25 +85,31 @@ class Searcher:
                 timeout=self.config.search.page_load_timeout_seconds * 1000,
             )
         except Exception as e:
-            return _error_run(query, searched_at_utc, f"页面加载失败: {e}")
+            run = _error_run(query, searched_at_utc, f"页面加载失败: {e}")
+            _write_json(out_dir / f"{prefix}.json", entity, entity_type, run, page)
+            return run
 
         # 2. 检测 reCAPTCHA / sorry 页面
         if _is_blocked(page):
             if self.config.browser.headless:
-                return _error_run(
+                run = _error_run(
                     query, searched_at_utc,
                     "headless 模式下触发 Google 验证，无法人工介入。"
                     "请移除 --headless 或重新登录。",
                 )
+                _write_json(out_dir / f"{prefix}.json", entity, entity_type, run, page)
+                return run
             # headed: 等待用户手动通过
             had_user_interaction = True
             print("\n⚠ 检测到 Google 验证页，请在浏览器中手动通过…")
             try:
                 _wait_for_unblock(page, self.config.search.captcha_wait_seconds)
             except TimeoutError:
-                return _error_run(
+                run = _error_run(
                     query, searched_at_utc, "用户未在规定时间内通过验证",
                 )
+                _write_json(out_dir / f"{prefix}.json", entity, entity_type, run, page)
+                return run
 
         # 3. 等页面就绪
         page_load_ms = wait_for_page_ready(
@@ -192,6 +198,25 @@ def _error_run(query, searched_at_utc, message) -> "TemplateRunResult":
 
 
 def _write_json(path, entity, entity_type, run, page):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    browser_channel = "chrome"
+    user_agent = ""
+    viewport = None
+    try:
+        browser_channel = page.context.browser.browser_type.name if page.context.browser else "chrome"
+    except Exception:
+        pass
+    if not isinstance(browser_channel, str):
+        browser_channel = str(browser_channel)
+    try:
+        user_agent = page.evaluate("navigator.userAgent")
+    except Exception:
+        pass
+    try:
+        viewport = page.viewport_size
+    except Exception:
+        pass
+
     payload = {
         "entity": entity,
         "entity_type": entity_type,
@@ -201,9 +226,9 @@ def _write_json(path, entity, entity_type, run, page):
         "searched_at_utc": run.searched_at_utc,
         "searched_at_local": run.searched_at_local,
         "browser": {
-            "channel": page.context.browser.browser_type.name if page.context.browser else "chrome",
-            "user_agent": page.evaluate("navigator.userAgent"),
-            "viewport": page.viewport_size,
+            "channel": browser_channel,
+            "user_agent": user_agent,
+            "viewport": viewport,
         },
         "evidence": asdict(run.evidence) if run.evidence else None,
         "results": [asdict(r) for r in run.results],

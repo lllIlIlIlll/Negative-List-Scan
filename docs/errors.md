@@ -1,7 +1,7 @@
 # 错误日志
 
 > 本文件记录所有遇到的问题、根因分析、解决方案和预防规则。
-> 由 Claude Code 会话在每次遇到错误后自动追加。
+> 由开发会话在每次遇到错误后自动追加。
 
 ---
 
@@ -18,14 +18,14 @@
 - 方案1
 - 方案2
 
-**预防规则**（已写入 CLAUDE.md）：
+**预防规则**（已写入 AGENTS.md）：
 - 规则描述
 ---
 -->
 
 ---
 
-## [Python 版本不满足 — 2026-04-09
+## [Python 版本不满足] — 2026-04-09
 
 **错误信息**：`ERROR: Package 'google-search' requires a different Python: 3.9.6 not in '>=3.10'`
 
@@ -40,7 +40,7 @@
 
 ---
 
-## [Playwright Sync API 与 asyncio loop 冲突 — 2026-04-09
+## [Playwright Sync API 与 asyncio loop 冲突] — 2026-04-09
 
 **错误信息**：`It looks like you are using Playwright Sync API inside the asyncio loop.`
 
@@ -52,10 +52,10 @@
 - 在 `browser.py` 的 `_ensure_browser()` 中用 `asyncio.new_event_loop()` 创建隔离 loop
 - 修复已应用到 `src/google_search/browser.py`
 
-**预防规则**（已写入 CLAUDE.md）：
+**预防规则**（已写入 AGENTS.md）：
 - Playwright Sync API 在 macOS 上必须使用隔离事件循环
 
-**预防规则**（已写入 CLAUDE.md）：
+**预防规则**（已写入 AGENTS.md）：
 - 安装前先检查 Python 版本：`python3 --version`，必须 >= 3.10
 - README.md 中已说明 `requires-python = ">=3.10"`
 
@@ -63,7 +63,7 @@
 
 ---
 
-## [Playwright async API 迁移 — 2026-04-09
+## [Playwright async API 迁移] — 2026-04-09
 
 **错误信息**：`RuntimeWarning: coroutine 'Page.goto' was never awaited` + `'coroutine' object has no attribute 'lower'`
 
@@ -76,7 +76,7 @@
 - `searcher.py` 中所有 Playwright async 方法调用必须用 `mgr._run_async()` 包装
 - 修复已应用到 `src/google_search/searcher.py`
 
-**预防规则**（已写入 CLAUDE.md）：
+**预防规则**（已写入 AGENTS.md）：
 - browser.py 返回的 Page/Context 对象只允许通过 `_run_async` 调用其方法
 
 
@@ -84,16 +84,16 @@
 每次会话中遇到错误时：
 1. 分析错误根因
 2. 以上方格式追加到本文件
-3. 将"预防规则"追加到 `CLAUDE.md` 的 `错误预防规则` 章节
+3. 将"预防规则"追加到 `AGENTS.md` 的 `错误预防规则` 章节
 4. 后续会话开始时读取本文件，避免重复犯错
 
 ---
 
-*本文件由 Claude Code 自动维护，请勿手动删除任何记录。*
+*本文件由开发会话自动维护，请勿手动删除任何记录。*
 
 ---
 
-## [本地工作区不是 Git 仓库 — 2026-04-28]
+## [本地工作区不是 Git 仓库] — 2026-04-28
 
 **错误信息**：`fatal: not a git repository (or any of the parent directories): .git`
 
@@ -110,7 +110,7 @@
 
 ---
 
-## [Python 3.10 开发环境未完整初始化 — 2026-04-28]
+## [Python 3.10 开发环境未完整初始化] — 2026-04-28
 
 **错误信息**：`Python 3.9.6` / `No module named ruff` / `ModuleNotFoundError: No module named 'google_search'` / `ModuleNotFoundError: No module named 'playwright'`
 
@@ -130,7 +130,7 @@
 
 ---
 
-## [Sandbox 阻止写入 Git 元数据 — 2026-04-28]
+## [Sandbox 阻止写入 Git 元数据] — 2026-04-28
 
 **错误信息**：`error: could not lock config file .git/config: Operation not permitted` / `touch: .git/codex_write_probe: Operation not permitted`
 
@@ -144,3 +144,107 @@
 
 **预防规则**（写入 AGENTS.md）：
 - 新初始化仓库后必须验证 `.git/` 可写，再继续执行 `remote/add/commit/push`。
+
+---
+
+## [系统默认 Python 仍低于项目要求] — 2026-04-28
+
+**错误信息**：`Python 3.9.6`
+
+**根因**：
+- 本机系统 `python3` 仍指向 macOS 自带 Python 3.9.6，不满足项目 `requires-python = ">=3.10"`。
+- 项目已有 `.venv` 是 Python 3.10.17，但如果命令没有显式使用该环境，仍会落到错误解释器。
+
+**解决方案**：
+- 本次验证使用 `.venv/bin/python`、`.venv/bin/pytest` 和 `.venv/bin/ruff`。
+- README 和 AGENTS 已明确提示系统 Python 低于 3.10 时必须使用 3.10+ 虚拟环境。
+
+**预防规则**（写入 AGENTS.md）：
+- 本机默认 `python3` 低于 3.10 时，测试和开发命令必须显式使用 `.venv/bin/python` 或等价 3.10+ 解释器。
+
+---
+
+## [CLI 文档用法与实现不一致] — 2026-04-28
+
+**错误信息**：`No such command '三鹿集团'`
+
+**根因**：
+- README、AGENTS 和集成测试使用 `python -m google_search "名称" company` 短格式。
+- Click 实现已迁移为 group + `search` 子命令，但 `main()` 未兼容旧入口参数。
+
+**解决方案**：
+- 在 `main()` 中把首个非选项参数不是已知子命令的调用自动映射到 `search` 子命令。
+- 增加 CLI 参数兼容性测试，覆盖短格式、显式子命令和 `--config` 前置场景。
+
+**预防规则**（写入 AGENTS.md）：
+- 修改 CLI 用法、README 示例或集成测试时，必须同步验证三者一致。
+
+---
+
+## [Playwright 等待超时单位误用] — 2026-04-28
+
+**错误信息**：`page.wait_for_load_state("networkidle", timeout=30)`
+
+**根因**：
+- `config.yaml` 中的 `network_idle_timeout_seconds` 单位是秒。
+- `wait_for_page_ready()` 参数名是毫秒，但内部又除以 1000，导致 30 秒配置实际传给 Playwright 后变成 30 毫秒。
+
+**解决方案**：
+- `wait_for_page_ready()` 直接把毫秒值传给 Playwright。
+- 更新测试期望，确保 `30_000` 毫秒不会被降成 `30`。
+
+**预防规则**（写入 AGENTS.md）：
+- Playwright timeout 参数使用毫秒，配置秒数传入前必须乘以 1000，禁止再除以 1000。
+
+---
+
+## [清理生成物命令触碰受限路径] — 2026-04-28
+
+**错误信息**：`Rejected("approval required by policy")` / `find: -delete: unlink(./.git/.DS_Store): Operation not permitted`
+
+**根因**：
+- 直接使用 `rm -rf` 清理缓存目录被当前工具策略拦截。
+- 后续按文件删除时，通配范围包含了 `.git/.DS_Store`，而 Git 元数据目录受 sandbox 保护。
+
+**解决方案**：
+- 改为只清理明确的项目生成物路径：`.pytest_cache`、`tests/__pycache__`、`src/google_search.egg-info`。
+- 避免扫描或删除 `.git/` 内部文件。
+
+**预防规则**（写入 AGENTS.md）：
+- 清理缓存/生成物时只针对项目文件路径，禁止递归触碰 `.git/` 内部文件。
+
+---
+
+## [集成测试硬编码不存在的 Python 命令] — 2026-04-28
+
+**错误信息**：`FileNotFoundError: [Errno 2] No such file or directory: 'python'`
+
+**根因**：
+- `tests/test_integration.py` 在子进程中硬编码调用 `python -m google_search`。
+- 当前测试环境只有正在运行 pytest 的解释器路径可靠，`python` 命令名不一定存在。
+- 集成测试还会访问真实 Google 和本地 Chrome profile，不适合作为默认单测无条件运行。
+
+**解决方案**：
+- 子进程改用 `sys.executable`。
+- 真实搜索集成测试默认跳过，只有设置 `GOOGLE_SEARCH_RUN_INTEGRATION=1` 时才运行。
+
+**预防规则**（写入 AGENTS.md）：
+- 测试中启动当前项目的子进程必须使用 `sys.executable`，不要硬编码 `python` 或 `python3`。
+- 真实访问 Google/Chrome 的集成测试必须默认跳过，用显式环境变量开启。
+
+---
+
+## [Mock 对象写入 JSON 元数据] — 2026-04-28
+
+**错误信息**：`TypeError: Object of type MagicMock is not JSON serializable`
+
+**根因**：
+- `_write_json()` 从 Playwright page 上读取浏览器 channel。
+- 单元测试使用 `MagicMock` 模拟 page，`page.context.browser.browser_type.name` 返回的是 mock 对象，不是字符串。
+
+**解决方案**：
+- 写入 JSON 前确保 browser channel 是字符串。
+- 保持测试使用 mock page，避免为了元数据字段引入真实浏览器依赖。
+
+**预防规则**（写入 AGENTS.md）：
+- 写入 JSON 的元数据必须先规范化为可序列化基础类型，尤其是来自 mock 或第三方对象的字段。

@@ -26,13 +26,24 @@ def cli(ctx, config_path):
 @click.option("--headless/--no-headless", default=None)
 @click.option("--profile", "profile_path", default=None)
 @click.option("-o", "--output-dir", default=None)
+@click.option("-c", "--config", "config_path_override", default=None)
 @click.option("--no-html", is_flag=True)
 @click.option("--no-screenshot", is_flag=True)
 @click.pass_context
-def search(ctx, entity, entity_type, custom_template, headless,
-           profile_path, output_dir, no_html, no_screenshot):
+def search(
+    ctx,
+    entity,
+    entity_type,
+    custom_template,
+    headless,
+    profile_path,
+    output_dir,
+    config_path_override,
+    no_html,
+    no_screenshot,
+):
     """执行单实体负面新闻搜索"""
-    cfg = ctx.obj["config"]
+    cfg = Config.load(config_path_override) if config_path_override else ctx.obj["config"]
 
     # 命令行选项覆盖配置
     if headless is not None:
@@ -48,9 +59,7 @@ def search(ctx, entity, entity_type, custom_template, headless,
 
     # 预检 profile
     if not cfg.profile_path.exists():
-        click.echo(click.style(
-            f"✗ profile 不存在：{cfg.profile_path}", fg="red"
-        ))
+        click.echo(click.style(f"✗ profile 不存在：{cfg.profile_path}", fg="red"))
         click.echo("提示: 请先运行 `google-search login` 完成首次登录配置")
         sys.exit(2)
 
@@ -107,13 +116,44 @@ def _print_summary(result):
         if run.error:
             click.echo(click.style(f"  ✗ {run.template_id}: {run.error}", fg="red"))
         else:
-            click.echo(click.style(
-                f"  ✓ {run.template_id}: {run.evidence.pdf_path}", fg="green"
-            ))
+            click.echo(
+                click.style(f"  ✓ {run.template_id}: {run.evidence.pdf_path}", fg="green")
+            )
 
 
 def main():
-    cli(obj={})
+    args = _inject_default_command(sys.argv[1:])
+    cli(args=args, obj={})
+
+
+def _inject_default_command(args: list[str]) -> list[str]:
+    command_names = set(cli.commands)
+    first_arg_index = _first_positional_index(args)
+    if first_arg_index is None:
+        return args
+    if args[first_arg_index] in command_names:
+        return args
+    return [*args[:first_arg_index], "search", *args[first_arg_index:]]
+
+
+def _first_positional_index(args: list[str]) -> int | None:
+    options_with_values = {"-c", "--config"}
+    skip_next = False
+    for index, arg in enumerate(args):
+        if skip_next:
+            skip_next = False
+            continue
+        if arg == "--":
+            return index + 1 if index + 1 < len(args) else None
+        if arg in options_with_values:
+            skip_next = True
+            continue
+        if any(arg.startswith(f"{option}=") for option in options_with_values):
+            continue
+        if arg.startswith("-"):
+            continue
+        return index
+    return None
 
 
 if __name__ == "__main__":

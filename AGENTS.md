@@ -4,7 +4,7 @@
 
 ## 项目概述
 
-基于 Playwright 无头浏览器的 Google 搜索负面新闻排查工具。通过 Chromium 自动访问 Google，搜索目标实体的负面新闻并保存 PDF。
+基于 Playwright 的 Google 搜索负面新闻取证工具。工具默认启动有头 Chrome，并复用独立 profile 中的登录状态，按模板搜索目标实体的负面信息，保存 PDF、HTML、截图和 JSON 元数据。
 
 **技术栈**：Python 3.10+ / Playwright / Click CLI / PyYAML
 
@@ -12,55 +12,58 @@
 
 ```bash
 # 开发环境
-pip install -e .[dev]          # 安装依赖
-playwright install chromium       # 安装浏览器
-/build                           # 自定义命令
+python3 --version                # 必须 >= 3.10
+pip install -e ".[dev]"          # 安装依赖
+playwright install chromium      # 仅 browser.channel=chromium 时需要
 
 # Lint & Test
-ruff check .                     # 检查
-ruff check --fix .               # 自动修复
-pytest                           # 所有测试
-/test tests/test_searcher.py     # 单文件测试
+ruff check .
+ruff check --fix .
+pytest
+pytest tests/test_searcher.py
 
-# 执行搜索
-python -m google_search "三鹿集团" company
+# 首次登录与执行搜索
+google-search login
+google-search profile-status
+google-search search "三鹿集团" company
 python -m google_search "张三" person --template '"{name}" AND (诈骗 OR 起诉)'
-/run "三鹿集团" company
 ```
 
 ## 关键路径
 
-```
+```text
 src/google_search/
 ├── __main__.py     # python -m google_search 入口
 ├── cli.py          # Click CLI 接口
 ├── config.py       # YAML 配置加载
-├── browser.py      # Playwright 浏览器生命周期
+├── browser.py      # 持久化 Chrome profile 生命周期
 ├── searcher.py     # 搜索流程编排
-├── pdf.py          # PDF 生成
-├── ua_pool.py      # User-Agent 池
-├── proxy.py        # 代理池
-└── templates.py    # 搜索模板
+├── pdf.py          # CDP PDF、HTML、截图保存
+├── parser.py       # Google 结果 best-effort 解析
+├── models.py       # dataclass 模型
+└── templates.py    # 搜索 URL 构造
 
-config.yaml          # 运行时配置
-templates/default.yaml  # 预定义模板
-output/              # PDF + JSON 输出（不提交 git）
+config.yaml          # 运行时配置与搜索模板
+output/              # PDF + HTML + PNG + JSON 输出（不提交 git）
 docs/                # 详细文档
 tests/               # pytest 测试
 ```
 
 ## 必知约定
 
-- **PDF 生成**：使用 `page.pdf()` 全页面截图，保持 Google 页面原始布局
-- **动态加载**：使用 `networkidle` 等待页面完全渲染后再生成 PDF
-- **重试策略**：失败时自动切换代理 IP + 随机 UA，最多重试 2 次
-- **配置文件**：`config.yaml` 管理代理池、UA 池、搜索模板
+- **PDF 生成**：使用 CDP `Page.printToPDF`，因为 headed Chrome 不支持 Playwright `page.pdf()`
+- **动态加载**：`networkidle` 使用毫秒超时值，配置单位是秒，传给 Playwright 前必须乘以 1000
+- **搜索策略**：多模板分次执行，不用 `OR` 拼接成单条超长查询
+- **反爬边界**：不内置代理池、UA 池、stealth 或验证码绕过；遇到验证码时 headed 模式等待用户手动处理
+- **配置文件**：`config.yaml` 管理 profile、browser、search、templates、output
 
 ## 常见坑
 
 - **IMPORTANT**: 安装前必须检查 Python 版本 >= 3.10，运行 `python3 --version` 确认
-- PDF 文件命名格式：`实体名_YYYYMMDD_HHMMSS.pdf`
+- 如果系统 `python3` 是 3.9，请使用 `.venv/bin/python` 或创建 3.10+ 虚拟环境
+- PDF 文件命名格式：`实体名_template_id_YYYYMMDDTHHMMSSZ.pdf`
 - output/ 目录不提交到 git，已在 .gitignore 中
+- `python -m google_search "名称" company` 是兼容短格式，真实 CLI 子命令是 `search`
 
 ## 错误自省规则
 
@@ -70,15 +73,15 @@ tests/               # pytest 测试
 2. **更新 `docs/errors.md`**：
    ```markdown
    ## [错误摘要] — YYYY-MM-DD
-   
+
    **错误信息**：`Error: ...`
-   
+
    **根因**：
    - 原因1
-   
+
    **解决方案**：
    - 方案1
-   
+
    **预防规则**（写入 AGENTS.md）：
    - 规则描述
    ```
@@ -93,3 +96,10 @@ tests/               # pytest 测试
 - **跑测试或 lint 前必须确认使用 Python 3.10+ 且已执行 editable 开发安装**，否则 pytest/ruff/Playwright 依赖可能不可用
 - **src 布局项目若未安装，临时测试必须显式设置 `PYTHONPATH=src`**，避免 `ModuleNotFoundError: google_search`
 - **新初始化仓库后必须验证 `.git/` 可写**，再继续执行 `remote/add/commit/push`
+- **本机默认 `python3` 低于 3.10 时，测试和开发命令必须显式使用 `.venv/bin/python` 或等价 3.10+ 解释器**
+- **修改 CLI 用法、README 示例或集成测试时，必须同步验证三者一致**
+- **Playwright timeout 参数使用毫秒，配置秒数传入前必须乘以 1000，禁止再除以 1000**
+- **清理缓存/生成物时只针对项目文件路径，禁止递归触碰 `.git/` 内部文件**
+- **测试中启动当前项目的子进程必须使用 `sys.executable`，不要硬编码 `python` 或 `python3`**
+- **真实访问 Google/Chrome 的集成测试必须默认跳过，用显式环境变量开启**
+- **写入 JSON 的元数据必须先规范化为可序列化基础类型，尤其是来自 mock 或第三方对象的字段**

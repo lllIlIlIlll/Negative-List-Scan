@@ -3,7 +3,7 @@
 **文档版本**：v2.0
 **日期**：2026-04-28
 **关联文档**：`PRD-v2.md`
-**取代**：`ARCHITECTURE.md`（v1，保留备查）
+**取代**：v1 代理/UA 轮换架构文档
 
 ---
 
@@ -1167,43 +1167,39 @@ JSON 中记录：
 │  单元测试（无需 Playwright）            │
 │                                        │
 │  test_config.py    — YAML 加载、env 覆盖│
+│  test_cli.py       — 参数兼容性         │
 │  test_templates.py — 多查询构造         │
-│  test_models.py    — dataclass 序列化   │
-│  test_parser.py    — 用 fixture HTML    │
+│  test_pdf.py       — 等待/快照保存逻辑  │
+│  test_browser.py   — 浏览器配置初始化   │
 └────────────────────────────────────────┘
                     │
 ┌────────────────────▼───────────────────┐
 │  集成测试（mock Playwright）            │
 │                                        │
-│  test_searcher.py  — 编排逻辑、错误分支│
+│  test_searcher.py  — 编排逻辑、JSON 输出│
 └────────────────────────────────────────┘
                     │
 ┌────────────────────▼───────────────────┐
-│  E2E 测试（真实 Chrome）                │
+│  集成测试（真实 Chrome，可跳过）        │
 │                                        │
-│  tests/e2e/test_full_run.py            │
-│  ※ 需要 GOOGLE_SEARCH_E2E=1 环境变量    │
-│  ※ 不在 CI 默认运行                    │
+│  test_integration.py                   │
+│  ※ 需要 GOOGLE_SEARCH_RUN_INTEGRATION=1 │
+│  ※ 需要已登录 profile                  │
+│  ※ profile 不存在时自动 skip           │
 └────────────────────────────────────────┘
 ```
 
 ### 10.2 关键测试用例
 
-**`test_parser.py`**：把当前 Google SERP 的 HTML 存为 `tests/fixtures/sample_serp.html`，本地解析无需网络：
-
-```python
-def test_parse_real_serp_fixture():
-    html = Path("tests/fixtures/sample_serp.html").read_text()
-    # 用 fake page 注入 HTML
-    ...
-```
+**`test_cli.py`**：验证 `python -m google_search <entity> <type>` 会自动映射到 `search` 子命令，并保持显式子命令与全局 `--config` 行为不变。
 
 **`test_searcher.py`**：mock `PersistentBrowser`，验证：
 
 - 多模板分次执行（不是 OR 拼接）
-- 模板间确实有 sleep
-- reCAPTCHA 检测到时正确分支（headless 失败 / headed 等待）
-- DOM 解析失败时 PDF 仍正常保存
+- DOM 解析失败时 PDF/JSON 仍正常保存
+- 成功运行时会写出同名 JSON 元数据
+
+**`test_pdf.py`**：验证 Playwright timeout 保持毫秒语义，避免 30 秒配置被错误缩短为 30 毫秒。
 
 ### 10.3 删除的测试
 
@@ -1255,6 +1251,7 @@ google-search login
 
 # 4. 测试搜索
 google-search search "测试公司" company
+python -m google_search "测试公司" company
 ```
 
 ### 11.3 与 v1 安装的差异
@@ -1269,9 +1266,9 @@ google-search search "测试公司" company
 ```
 google-search/
 ├── pyproject.toml
-├── requirements.txt
 ├── config.yaml
 ├── README.md
+├── AGENTS.md
 ├── CLAUDE.md
 ├── .env.example
 ├── .gitignore
@@ -1291,22 +1288,18 @@ google-search/
 │
 ├── tests/
 │   ├── __init__.py
-│   ├── fixtures/
-│   │   └── sample_serp.html
+│   ├── test_browser.py
+│   ├── test_cli.py
 │   ├── test_config.py
 │   ├── test_templates.py
-│   ├── test_models.py
-│   ├── test_parser.py
+│   ├── test_pdf.py
 │   ├── test_searcher.py
-│   └── e2e/
-│       └── test_full_run.py
+│   └── test_integration.py
 │
 ├── docs/
-│   ├── PRD.md              # v1（保留备查）
 │   ├── PRD-v2.md
-│   ├── ARCHITECTURE.md     # v1（保留备查）
 │   ├── ARCHITECTURE-v2.md  # 本文档
-│   └── DEVELOPMENT_PLAN.md
+│   └── errors.md
 │
 └── output/                  # 不入 git
 ```
@@ -1314,7 +1307,7 @@ google-search/
 **与 v1 对比**：
 
 - **删除**：`src/google_search/proxy.py`、`src/google_search/ua_pool.py`、`tests/test_proxy.py`、`tests/test_ua_pool.py`
-- **新增**：`src/google_search/parser.py`、`tests/test_parser.py`、`tests/fixtures/`、`tests/e2e/`
+- **新增**：`src/google_search/parser.py`、`tests/test_cli.py`、`tests/test_pdf.py`
 - **重写**：`browser.py`、`pdf.py`、`searcher.py`、`cli.py`
 
 ---

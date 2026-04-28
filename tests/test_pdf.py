@@ -24,7 +24,7 @@ class TestWaitForPageReady:
 
         wait_for_page_ready(page, network_idle_timeout_ms=30_000)
 
-        page.wait_for_load_state.assert_any_call("networkidle", timeout=30)
+        page.wait_for_load_state.assert_any_call("networkidle", timeout=30000)
         page.wait_for_timeout.assert_called_with(2000)
 
     def test_networkidle_timeout_fallback(self):
@@ -36,7 +36,7 @@ class TestWaitForPageReady:
 
         calls = page.wait_for_load_state.call_args_list
         assert len(calls) == 2
-        page.wait_for_load_state.assert_any_call("networkidle", timeout=30)
+        page.wait_for_load_state.assert_any_call("networkidle", timeout=30000)
         page.wait_for_load_state.assert_any_call("domcontentloaded")
         page.wait_for_timeout.assert_called_with(3000)
         assert result >= 0

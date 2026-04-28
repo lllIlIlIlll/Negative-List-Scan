@@ -4,7 +4,7 @@ import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from google_search.config import BrowserConfig, Config, OutputConfig, SearchConfig
+from google_search.config import BrowserConfig, Config, OutputConfig, SearchConfig, TemplateEntry
 from google_search.searcher import Searcher
 from google_search.templates import build_queries
 
@@ -67,7 +67,11 @@ def test_searcher_accepts_custom_template():
 def test_searcher_returns_search_task_result():
     """Searcher.search() 应返回 SearchTaskResult"""
     cfg = _make_config()
+    cfg.output.save_html = True
     searcher = Searcher(cfg)
+    cfg.templates["company"] = [
+        TemplateEntry(id="company_test", template='"{name}" AND 欺诈')
+    ]
 
     # Mock browser session
     mock_ctx = MagicMock()
@@ -82,6 +86,8 @@ def test_searcher_returns_search_task_result():
     mock_page.content = MagicMock(return_value="<html></html>")
     mock_page.evaluate = MagicMock(return_value="Mozilla/5.0")
     mock_page.viewport_size = {"width": 1280, "height": 900}
+    mock_page.screenshot = MagicMock()
+    mock_page.query_selector_all = MagicMock(return_value=[])
 
     mock_ctx.new_page.return_value = mock_page
 
@@ -90,9 +96,13 @@ def test_searcher_returns_search_task_result():
         mock_session.return_value.__enter__ = MagicMock(return_value=mock_ctx)
         mock_session.return_value.__exit__ = MagicMock(return_value=False)
 
-        # 执行搜索（不会真正生成 PDF 因为我们 mock 了 cdp_session）
-        # 这只是一个烟雾测试，验证接口正确
-        pass
+        result = searcher.search("测试公司", "company")
+
+    assert result.entity == "测试公司"
+    assert result.entity_type == "company"
+    assert result.total_count == 1
+    assert result.success_count == 1
+    assert list(cfg.output.directory.glob("测试公司_*.json"))
 
 
 def test_sanitize_filename():

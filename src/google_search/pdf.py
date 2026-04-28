@@ -64,7 +64,7 @@ def wait_for_page_ready(
     """三段式等待。返回实际等待毫秒数（用于 metadata）。"""
     start = time.time()
     try:
-        page.wait_for_load_state("networkidle", timeout=network_idle_timeout_ms / 1000)
+        page.wait_for_load_state("networkidle", timeout=network_idle_timeout_ms)
         page.wait_for_timeout(2_000)
     except Exception:
         page.wait_for_load_state("domcontentloaded")

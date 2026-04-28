@@ -3,7 +3,7 @@
 **文档版本**：v2.0
 **日期**：2026-04-28
 **状态**：定位修正 / 重新设计
-**关联文档**：`PRD.md`（v1，已废弃）/ `ARCHITECTURE.md`（待按本文档同步）
+**关联文档**：`ARCHITECTURE-v2.md`
 
 ---
 
@@ -346,6 +346,7 @@ output:
 ```bash
 # 单实体搜索
 google-search search <entity> <type> [OPTIONS]
+python -m google_search <entity> <type> [OPTIONS]  # 兼容短格式
 
 # 重新登录（启动有头 Chrome 让用户登录）
 google-search login
@@ -426,7 +427,7 @@ google-search/
 ├── src/google_search/
 │   ├── __init__.py
 │   ├── __main__.py
-│   ├── cli.py              # Click CLI（含 search / login / profile-status / batch 子命令）
+│   ├── cli.py              # Click CLI（含 search / login / profile-status，兼容 python -m 短格式）
 │   ├── config.py           # YAML 加载（依赖注入，不再用模块级单例）
 │   ├── exceptions.py       # 简化为 3 类：UserActionRequired / Recoverable / Fatal
 │   ├── models.py           # SearchResult / SearchTaskResult / EvidenceMetadata
@@ -437,19 +438,19 @@ google-search/
 │   └── parser.py           # DOM 解析（best-effort，失败不阻塞）
 │
 ├── tests/
-│   ├── test_templates.py
+│   ├── test_browser.py
+│   ├── test_cli.py
 │   ├── test_config.py
-│   ├── test_models.py
-│   ├── test_searcher.py    # Mock browser
-│   └── test_parser.py      # 用本地 fixture HTML
+│   ├── test_integration.py
+│   ├── test_pdf.py
+│   ├── test_searcher.py
+│   └── test_templates.py
 │
-├── templates/default.yaml
 ├── config.yaml
 ├── docs/
-│   ├── PRD.md              # v1（保留备查）
 │   ├── PRD-v2.md           # 本文档
-│   ├── ARCHITECTURE.md     # v1（保留备查）
-│   └── ARCHITECTURE-v2.md  # 待按本 PRD 同步
+│   ├── ARCHITECTURE-v2.md
+│   └── errors.md
 └── output/                 # 不入 git
 ```
 

@@ -1,9 +1,0 @@
-# templates/default.yaml — 搜索模板定义
-
-company:
-  - '"{name}" AND (欺诈 OR 投诉 OR 曝光 OR 纠纷 OR 起诉 OR 违约)'
-  - '"{name}" AND (调查 OR 处罚 OR 监管 OR 违规 OR 黑名单)'
-
-person:
-  - '"{name}" AND (诈骗 OR 起诉 OR 举报 OR 犯罪 OR 逮捕)'
-  - '"{name}" AND (受贿 OR 挪用 OR 潜逃 OR 被抓)'

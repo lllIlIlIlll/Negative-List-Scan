@@ -9,7 +9,7 @@ _RESULT_SELECTORS = [
     "div.g",                  # 经典选择器（已不稳定）
     "div[data-snhf]",         # 部分页面
     "div[data-async-context]",
-    "div.MjjYud",             # 当前主流（2024 年）
+    "div.MjjYud",             # 常见 Google 搜索结果容器
 ]
 
 

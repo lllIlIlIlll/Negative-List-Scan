@@ -1,6 +1,8 @@
 """tests/test_integration.py — 集成验收测试（v2）"""
 
+import os
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -10,8 +12,10 @@ PROFILE_DIR = Path("~/.local/share/google_search/profile").expanduser()
 
 
 @pytest.fixture
-def skip_if_no_profile():
-    """如果 Profile 不存在或为空，跳过测试"""
+def skip_unless_integration_enabled():
+    """真实 Google 搜索默认跳过，避免普通单测依赖网络和本地登录态"""
+    if not os.environ.get("GOOGLE_SEARCH_RUN_INTEGRATION"):
+        pytest.skip("需要设置 GOOGLE_SEARCH_RUN_INTEGRATION=1 才运行真实搜索集成测试")
     if not PROFILE_DIR.exists():
         pytest.skip("Profile 目录不存在，需要先运行 google-search login")
     if not list(PROFILE_DIR.glob("**/*")):
@@ -21,7 +25,7 @@ def skip_if_no_profile():
 class TestSearchWithProfile:
     """验收标准：使用已登录 Profile 搜索时，不应返回致命错误"""
 
-    def test_search_exits_zero_or_one(self, skip_if_no_profile, tmp_path):
+    def test_search_exits_zero_or_one(self, skip_unless_integration_enabled, tmp_path):
         """
         验收标准 1: 搜索命令退出码为 0（成功）或 1（部分成功）
         """
@@ -30,7 +34,7 @@ class TestSearchWithProfile:
 
         result = subprocess.run(
             [
-                "python", "-m", "google_search",
+                sys.executable, "-m", "google_search",
                 "测试公司", "company",
                 "--output-dir", str(output_dir),
             ],
@@ -46,7 +50,7 @@ class TestSearchWithProfile:
             f"stderr: {result.stderr}"
         )
 
-    def test_no_fatal_error(self, skip_if_no_profile, tmp_path):
+    def test_no_fatal_error(self, skip_unless_integration_enabled, tmp_path):
         """
         验收标准 2: 不包含 FatalError 退出码 2
         """
@@ -55,7 +59,7 @@ class TestSearchWithProfile:
 
         result = subprocess.run(
             [
-                "python", "-m", "google_search",
+                sys.executable, "-m", "google_search",
                 "测试公司", "company",
                 "--output-dir", str(output_dir),
             ],
@@ -71,7 +75,7 @@ class TestSearchWithProfile:
             f"stderr: {result.stderr}"
         )
 
-    def test_json_files_generated(self, skip_if_no_profile, tmp_path):
+    def test_json_files_generated(self, skip_unless_integration_enabled, tmp_path):
         """
         验收标准 3: JSON 结果文件存在
         """
@@ -80,7 +84,7 @@ class TestSearchWithProfile:
 
         result = subprocess.run(
             [
-                "python", "-m", "google_search",
+                sys.executable, "-m", "google_search",
                 "测试公司", "company",
                 "--output-dir", str(output_dir),
             ],
@@ -97,7 +101,7 @@ class TestSearchWithProfile:
         json_files = list(output_dir.glob("测试公司_*.json"))
         assert json_files, f"未找到 JSON 输出文件 (output_dir={output_dir})"
 
-    def test_pdf_generated(self, skip_if_no_profile, tmp_path):
+    def test_pdf_generated(self, skip_unless_integration_enabled, tmp_path):
         """
         验收标准 4: PDF 文件存在
         """
@@ -106,7 +110,7 @@ class TestSearchWithProfile:
 
         result = subprocess.run(
             [
-                "python", "-m", "google_search",
+                sys.executable, "-m", "google_search",
                 "测试公司", "company",
                 "--output-dir", str(output_dir),
             ],
